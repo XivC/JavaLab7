@@ -16,6 +16,7 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
@@ -25,10 +26,11 @@ public class WorkersManager {
     public final LocalDateTime creationTime;
     private final ReadWriteLock lock;
     private WorkersDBController controller;
+    private HashMap<String, String> keyOwnerRelating;
     public static final Logger logger = (Logger) LoggerFactory.getLogger(WorkersManager.class);
 
     public WorkersManager(WorkersDBController controller) {
-        this.workers = new HashMap<String, Worker>();
+        this.workers = new HashMap<>();
         this.creationTime = LocalDateTime.now();
         this.lock = new ReentrantReadWriteLock();
         this.controller = controller;
@@ -40,9 +42,17 @@ public class WorkersManager {
         return (HashMap<String, Worker>)this.workers.clone();
     }
 
-    public void clear() {
+    public void clear(String owner) throws SQLException {
         lock.writeLock();
-        this.workers.clear();
+        Set<String> keys = this.getWorkers().keySet();
+        for(String key: keys){
+            if(this.controller.checkOwner(key, owner)){
+                controller.remove(key);
+                this.workers.remove(key);
+            }
+        }
+        this.updateOwnerRelating();
+
     }
 
     private Worker add(String key, Worker w, String owner) throws SQLException{
@@ -50,6 +60,7 @@ public class WorkersManager {
         w.creationDate = LocalDate.now();
         controller.add(key, w, owner);
         workers.put(key, w);
+        this.updateOwnerRelating();
         return w;
     }
 
@@ -84,6 +95,7 @@ public class WorkersManager {
                     if (this.controller.checkOwner(p, owner)) {
                         this.controller.remove(p);
                         this.workers.remove(p);
+                        this.updateOwnerRelating();
                     }
                 } catch (SQLException ex) {
                     logger.error(ex.getMessage());
@@ -99,6 +111,7 @@ public class WorkersManager {
                 if (this.controller.checkOwner(p, owner)) {
                     this.controller.remove(p);
                     this.workers.remove(p);
+                    this.updateOwnerRelating();
                 }
             } catch (SQLException ex) {
                 logger.error(ex.getMessage());
@@ -112,6 +125,7 @@ public class WorkersManager {
         if (this.controller.checkOwner(key, owner)) {
             controller.remove(key);
             workers.remove(key);
+            this.updateOwnerRelating();
         }
         else throw new IllegalDataAccessException();
         return key;
@@ -126,6 +140,7 @@ public class WorkersManager {
             Worker nw = w.clone();
             workers.put(key, nw);
             controller.update(key, nw);
+            this.updateOwnerRelating();
             return true;
         }
         return false;
@@ -140,6 +155,7 @@ public class WorkersManager {
         controller.remove(key);
         this.add(key, w, owner);
         this.workers.put(key, w);
+        this.updateOwnerRelating();
         return key;
 
     }
@@ -147,12 +163,20 @@ public class WorkersManager {
     public void load() {
         try{
             this.workers = controller.getWorkers();
+            this.keyOwnerRelating = controller.getKeyOwnerRelations();
+
         }
         catch(SQLException ex){
             logger.error(ex.getMessage());
         }
 
     }
-
+    public String getOwnerByKey(String key){
+        return this.keyOwnerRelating.get(key);
+    }
+    private void updateOwnerRelating() throws SQLException{
+        //lock.writeLock();
+        this.keyOwnerRelating = controller.getKeyOwnerRelations();
+    }
 
 }

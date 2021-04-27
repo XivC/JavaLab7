@@ -53,6 +53,22 @@ public class WorkersDBController extends DBController{
         return parsed;
 
     }
+    public HashMap<String, String> getKeyOwnerRelations() throws SQLException{
+        HashMap<String, String> parsed = new HashMap<>();
+        Statement s = this.connection.createStatement();
+        s.executeQuery("SELECT key, owner FROM workers");
+        ResultSet resultSet = s.getResultSet();
+
+            while (resultSet.next()) {
+
+                String key = resultSet.getString(1);
+                String owner = resultSet.getString(2);
+                parsed.put(key, owner);
+        }
+
+        return parsed;
+
+    }
     public boolean checkOwner(String key, String owner) throws SQLException{
         PreparedStatement s = this.connection.prepareStatement("SELECT * FROM workers WHERE key = ? AND owner = ?");
         s.setString(1,key);

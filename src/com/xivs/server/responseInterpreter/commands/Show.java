@@ -20,6 +20,7 @@ public class Show extends Command {
         s += "Дата окончания контракта: " + w.endDate.toString() + "\n";
         s += "Должность: " + w.position.toString() + "\n";
         s += "Статус: " + w.status.toString() + "\n";
+
         return s;
 
     }
@@ -33,7 +34,8 @@ public class Show extends Command {
 
         HashMap<String, Worker> workers = manager.getWorkers();
         for (String key : workers.keySet()) {
-            messages.add(key);
+
+            messages.add(key + " - " + manager.getOwnerByKey(key));
             messages.add(workerAsString(workers.get(key)));
         }
         return new Response(Response.Status.OK, messages, new HashMap<>());
